@@ -397,12 +397,14 @@ async function loginSpotify() {
 
 async function exchangeCode(code) {
   const verifier = sessionStorage.getItem('pkce_verifier');
+  if (!verifier) { setStatus('Login mislukt: geen verifier gevonden', 'err'); document.getElementById('login-view').style.display = 'flex'; return; }
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: verifier })
   });
   const data = await res.json();
+  console.log('Spotify token response:', data);
   if (data.access_token) {
     accessToken = data.access_token;
     sessionStorage.setItem('spotify_token', accessToken);
@@ -410,7 +412,7 @@ async function exchangeCode(code) {
     history.replaceState(null, '', location.pathname);
     showDJView();
   } else {
-    setStatus('Login mislukt, probeer opnieuw', 'err');
+    setStatus(`Login mislukt: ${data.error} – ${data.error_description}`, 'err');
     document.getElementById('login-view').style.display = 'flex';
   }
 }
