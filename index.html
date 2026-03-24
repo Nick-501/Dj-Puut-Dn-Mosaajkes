@@ -390,13 +390,13 @@ async function generateCodeChallenge(verifier) {
 async function loginSpotify() {
   const verifier = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const challenge = await generateCodeChallenge(verifier);
-  sessionStorage.setItem('pkce_verifier', verifier);
+  localStorage.setItem('pkce_verifier', verifier);
   const url = `https://accounts.spotify.com/authorize?response_type=code&client_id=${CLIENT_ID}&scope=${encodeURIComponent(SCOPES)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code_challenge_method=S256&code_challenge=${challenge}`;
   location.href = url;
 }
 
 async function exchangeCode(code) {
-  const verifier = sessionStorage.getItem('pkce_verifier');
+  const verifier = localStorage.getItem('pkce_verifier');
   if (!verifier) { setStatus('Login mislukt: geen verifier gevonden', 'err'); document.getElementById('login-view').style.display = 'flex'; return; }
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
