@@ -364,6 +364,7 @@
 const CLIENT_ID = '05fdf42d77034be08c464b2c2b9c4dfd';
 const REDIRECT_URI = 'https://nick-501.github.io/Dj-Puut-Dn-Mosaajkes/';
 const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+const FIREBASE_URL = 'https://dj-verzoekjes-default-rtdb.europe-west1.firebasedatabase.app';
 
 let accessToken = null;
 let requests = JSON.parse(localStorage.getItem('djreq_requests') || '[]');
@@ -429,9 +430,9 @@ async function exchangeCode(code) {
 function logout() {
   accessToken = null;
   requests = [];
+  fetch(`${FIREBASE_URL}/requests.json`, { method: 'DELETE' });
   sessionStorage.removeItem('spotify_token');
-  localStorage.removeItem('djreq_requests');
-  location.hash = '';
+  localStorage.removeItem('pkce_verifier');
   location.reload();
 }
 
@@ -537,19 +538,23 @@ function renderRequests() {
     </div>`).join('');
 }
 
-function syncRequests() {
-  const stored = JSON.parse(localStorage.getItem('djreq_requests') || '[]');
-  if (JSON.stringify(stored) !== JSON.stringify(requests)) {
-    requests = stored;
-    renderRequests();
-  }
+async function syncRequests() {
+  try {
+    const res = await fetch(`${FIREBASE_URL}/requests.json`);
+    const data = await res.json();
+    const fresh = Array.isArray(data) ? data : (data ? Object.values(data) : []);
+    if (JSON.stringify(fresh) !== JSON.stringify(requests)) {
+      requests = fresh;
+      renderRequests();
+    }
+  } catch(e) {}
 }
 
 function acceptRequest(id) {
   const r = requests.find(x => x.id === id);
   if (!r) return;
   r.status = 'accepted';
-  saveRequests();
+  fetch(`${FIREBASE_URL}/requests/${r.id}.json`, { method: 'PUT', body: JSON.stringify(r) });
   renderRequests();
   addToQueue(r.uri, r.name, r.artist);
 }
@@ -558,11 +563,16 @@ function rejectRequest(id) {
   const r = requests.find(x => x.id === id);
   if (!r) return;
   r.status = 'rejected';
-  saveRequests();
+  fetch(`${FIREBASE_URL}/requests/${r.id}.json`, { method: 'PUT', body: JSON.stringify(r) });
   renderRequests();
 }
 
-function saveRequests() { localStorage.setItem('djreq_requests', JSON.stringify(requests)); }
+function saveRequests() {
+  fetch(`${FIREBASE_URL}/requests.json`, {
+    method: 'PUT',
+    body: JSON.stringify(requests)
+  });
+}
 
 // ── GUEST SEARCH ──
 let searchTimer = null;
@@ -614,13 +624,19 @@ async function getClientToken() {
   return clientToken;
 }
 
-function submitRequest(uri, name, artist, img) {
+async function submitRequest(uri, name, artist, img) {
   const req = { id: Date.now().toString(), uri, name, artist, img, status: 'pending', time: new Date().toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'}) };
-  requests.push(req);
-  saveRequests();
-  document.getElementById('search-section').style.display = 'none';
-  document.getElementById('confirm-text').textContent = `"${name}" is naar de DJ gestuurd!`;
-  document.getElementById('sent-confirm').classList.add('active');
+  try {
+    await fetch(`${FIREBASE_URL}/requests/${req.id}.json`, {
+      method: 'PUT',
+      body: JSON.stringify(req)
+    });
+    document.getElementById('search-section').style.display = 'none';
+    document.getElementById('confirm-text').textContent = `"${name}" is naar de DJ gestuurd!`;
+    document.getElementById('sent-confirm').classList.add('active');
+  } catch(e) {
+    document.getElementById('guest-status').textContent = 'Versturen mislukt, probeer opnieuw.';
+  }
 }
 
 function resetGuest() {
