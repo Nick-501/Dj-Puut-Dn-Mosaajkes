@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJ Verzoekjes – Dj Puut & Dn Mösaajkes</title>
+<style>
+  :root {
+    --green: #1DB954;
+    --green-dark: #158a3e;
+    --black: #121212;
+    --surface: #181818;
+    --surface2: #282828;
+    --text: #FFFFFF;
+    --text-muted: #B3B3B3;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'Circular', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── DJ VIEW ── */
+  #dj-view {
+    width: 100%;
+    max-width: 900px;
+    padding: 2rem 1.5rem;
+    display: none;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  #dj-view.active { display: flex; }
+
+  /* ── GUEST VIEW ── */
+  #guest-view {
+    width: 100%;
+    max-width: 480px;
+    padding: 2rem 1.5rem;
+    display: none;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  #guest-view.active { display: flex; }
+
+  /* ── LOGIN VIEW ── */
+  #login-view {
+    width: 100%;
+    max-width: 400px;
+    padding: 3rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    text-align: center;
+  }
+
+  .logo {
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: -1px;
+    color: var(--green);
+  }
+  .logo span { color: var(--text); }
+
+  h1 { font-size: 1.6rem; font-weight: 700; }
+  h2 { font-size: 1.2rem; font-weight: 600; color: var(--text-muted); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border-radius: 500px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+    text-decoration: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { background: #1ed760; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid #555; }
+  .btn-outline:hover { border-color: var(--text); }
+  .btn-small { padding: 8px 18px; font-size: 13px; }
+  .btn-danger { background: #e91429; color: #fff; }
+  .btn-danger:hover { background: #ff1c31; }
+  .btn-accept { background: var(--green); color: #000; }
+
+  input[type=text], input[type=search] {
+    background: var(--surface2);
+    border: 1px solid #333;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 15px;
+    padding: 12px 16px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--green); }
+  input::placeholder { color: var(--text-muted); }
+
+  .card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+  }
+
+  /* Search results */
+  .track-list { display: flex; flex-direction: column; gap: 4px; }
+  .track-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .track-item:hover { background: var(--surface2); }
+  .track-img {
+    width: 44px;
+    height: 44px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #333;
+  }
+  .track-info { flex: 1; min-width: 0; }
+  .track-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-artist { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-duration { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+
+  /* Queue */
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .queue-item:last-child { border-bottom: none; }
+  .queue-num { font-size: 13px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
+  .queue-actions { display: flex; gap: 8px; margin-left: auto; flex-shrink: 0; }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 500px;
+    background: var(--surface2);
+    color: var(--text-muted);
+  }
+  .badge-green { background: rgba(29,185,84,0.15); color: var(--green); }
+  .badge-orange { background: rgba(255,140,0,0.15); color: #ff8c00; }
+
+  /* Now playing */
+  .now-playing {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, #1a3a2a, #0d1f16);
+    border: 1px solid rgba(29,185,84,0.3);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+  }
+  .now-playing img { width: 56px; height: 56px; border-radius: 6px; }
+  .now-playing-info { flex: 1; }
+  .now-playing-label { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .now-playing-name { font-size: 16px; font-weight: 700; }
+  .now-playing-artist { font-size: 13px; color: var(--text-muted); }
+
+  /* QR section */
+  .qr-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 1.5rem;
+    background: #fff;
+    border-radius: 12px;
+    width: fit-content;
+    margin: 0 auto;
+  }
+  .qr-wrap p { color: #000; font-size: 13px; font-weight: 600; text-align: center; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; background: var(--surface2); padding: 4px; border-radius: 10px; }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+  }
+  .tab.active { background: var(--surface); color: var(--text); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  #status-bar {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    min-height: 20px;
+  }
+  #status-bar.ok { color: var(--green); }
+  #status-bar.err { color: #e91429; }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .sent-confirm {
+    display: none;
+    text-align: center;
+    padding: 2rem 1rem;
+    gap: 1rem;
+    flex-direction: column;
+    align-items: center;
+  }
+  .sent-confirm.active { display: flex; }
+  .checkmark {
+    width: 64px; height: 64px;
+    background: rgba(29,185,84,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN VIEW ═══ -->
+<div id="login-view">
+  <div class="logo">DJ<span>Req</span></div>
+  <div>
+    <h1>Dj Puut & Dn Mösaajkes</h1>
+    <p style="color:var(--text-muted);margin-top:8px;font-size:15px;">Doe een verzoekje!</p>
+  </div>
+  <button class="btn btn-green" onclick="showGuestView()" style="width:100%;font-size:17px;padding:16px 28px;">
+    🎵 Verzoekje doen
+  </button>
+  <div id="status-bar"></div>
+  <div style="margin-top:2rem;text-align:center;">
+    <a href="#" onclick="loginSpotify();return false;" style="color:var(--text-muted);font-size:12px;text-decoration:none;opacity:0.5;">DJ login</a>
+  </div>
+</div>
+
+<!-- ═══ DJ VIEW ═══ -->
+<div id="dj-view">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div class="logo" style="font-size:1.4rem;">DJ<span>Req</span> – DJ Dashboard</div>
+    <button class="btn btn-outline btn-small" onclick="logout()">Uitloggen</button>
+  </div>
+
+  <div id="now-playing-section" style="display:none;" class="now-playing">
+    <img id="np-img" src="" alt="">
+    <div class="now-playing-info">
+      <div class="now-playing-label">▶ Nu spelend</div>
+      <div class="now-playing-name" id="np-name">–</div>
+      <div class="now-playing-artist" id="np-artist">–</div>
+    </div>
+    <button class="btn btn-outline btn-small" onclick="skipTrack()">⏭ Skip</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('tab-queue')">Wachtrij</button>
+    <button class="tab" onclick="switchTab('tab-requests')">Verzoekjes <span id="req-badge" style="display:none;" class="badge badge-orange">0</span></button>
+    <button class="tab" onclick="switchTab('tab-qr')">QR-code</button>
+  </div>
+
+  <!-- Queue tab -->
+  <div id="tab-queue" class="tab-content card active">
+    <div class="section-label">Spotify wachtrij</div>
+    <div id="queue-list"><div class="empty-state">Geen nummers in de wachtrij</div></div>
+    <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-outline btn-small" onclick="fetchQueue()">↻ Vernieuwen</button>
+    </div>
+  </div>
+
+  <!-- Requests tab -->
+  <div id="tab-requests" class="tab-content card" style="display:none;">
+    <div class="section-label">Binnenkomende verzoekjes</div>
+    <div id="requests-list"><div class="empty-state">Nog geen verzoekjes</div></div>
+  </div>
+
+  <!-- QR tab -->
+  <div id="tab-qr" class="tab-content card" style="display:none;">
+    <div class="section-label">Gasten QR-code</div>
+    <p style="color:var(--text-muted);font-size:14px;margin-bottom:1.5rem;">Laat gasten deze QR-code scannen om verzoekjes te doen.</p>
+    <div class="qr-wrap">
+      <canvas id="qr-canvas"></canvas>
+      <p id="qr-url-label">–</p>
+    </div>
+    <div style="margin-top:1rem;text-align:center;">
+      <button class="btn btn-outline btn-small" onclick="downloadQR()">Download QR</button>
+    </div>
+  </div>
+
+  <div id="status-bar"></div>
+</div>
+
+<!-- ═══ GUEST VIEW ═══ -->
+<div id="guest-view">
+  <div style="text-align:center;">
+    <div class="logo" style="font-size:1.3rem;margin-bottom:4px;">DJ<span>Req</span></div>
+    <div style="color:var(--text-muted);font-size:14px;">Doe een verzoekje!</div>
+  </div>
+
+  <div class="card" id="search-section">
+    <div class="section-label">Zoek een nummer</div>
+    <div style="display:flex;gap:8px;">
+      <input type="search" id="guest-search" placeholder="Artiest of nummer..." oninput="guestSearch(this.value)">
+    </div>
+    <div id="guest-results" class="track-list" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="sent-confirm" id="sent-confirm">
+    <div class="checkmark">✓</div>
+    <div style="font-size:18px;font-weight:700;">Verzoekje verstuurd!</div>
+    <div style="color:var(--text-muted);font-size:14px;" id="confirm-text">De DJ ziet je verzoekje zo.</div>
+    <button class="btn btn-outline btn-small" onclick="resetGuest()">Nog een verzoekje</button>
+  </div>
+
+  <div id="guest-status" style="text-align:center;font-size:13px;color:var(--text-muted);min-height:20px;"></div>
+</div>
+
+<!-- QR lib -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+const CLIENT_ID = '05fdf42d77034be08c464b2c2b9c4dfd';
+const REDIRECT_URI = location.href.split('?')[0].split('#')[0];
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+
+let accessToken = null;
+let requests = JSON.parse(localStorage.getItem('djreq_requests') || '[]');
+let qrGenerated = false;
+
+function setStatus(msg, type='') {
+  const el = document.getElementById('status-bar');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = type;
+}
+
+function showGuestView() {
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('guest-view').classList.add('active');
+}
+
+function loginSpotify() {
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('spotify_state', state);
+  const url = `https://accounts.spotify.com/authorize?response_type=token&client_id=${CLIENT_ID}&scope=${encodeURIComponent(SCOPES)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
+  location.href = url;
+}
+
+function parseHash() {
+  const hash = location.hash.substring(1);
+  const params = Object.fromEntries(hash.split('&').map(p => p.split('=')));
+  return params;
+}
+
+function logout() {
+  accessToken = null;
+  sessionStorage.removeItem('spotify_token');
+  location.hash = '';
+  location.reload();
+}
+
+function showDJView() {
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('dj-view').classList.add('active');
+  fetchNowPlaying();
+  fetchQueue();
+  setInterval(fetchNowPlaying, 10000);
+  setInterval(fetchQueue, 20000);
+  setInterval(syncRequests, 3000);
+  renderRequests();
+  generateQR();
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => { t.classList.remove('active'); t.style.display='none'; });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById(id).style.display = 'block';
+  const idx = ['tab-queue','tab-requests','tab-qr'].indexOf(id);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if (id === 'tab-qr' && !qrGenerated) generateQR();
+}
+
+async function spotifyFetch(url, opts={}) {
+  const res = await fetch('https://api.spotify.com/v1' + url, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json', ...(opts.headers||{}) }
+  });
+  if (res.status === 401) { setStatus('Sessie verlopen, herverbind', 'err'); return null; }
+  if (res.status === 204 || res.status === 202) return {};
+  if (!res.ok) return null;
+  return res.json().catch(() => ({}));
+}
+
+async function fetchNowPlaying() {
+  const data = await spotifyFetch('/me/player/currently-playing');
+  if (!data || !data.item) { document.getElementById('now-playing-section').style.display='none'; return; }
+  document.getElementById('now-playing-section').style.display='flex';
+  document.getElementById('np-name').textContent = data.item.name;
+  document.getElementById('np-artist').textContent = data.item.artists.map(a=>a.name).join(', ');
+  const img = data.item.album?.images?.[0]?.url;
+  if (img) document.getElementById('np-img').src = img;
+}
+
+async function fetchQueue() {
+  const data = await spotifyFetch('/me/player/queue');
+  const el = document.getElementById('queue-list');
+  if (!data || !data.queue || data.queue.length === 0) {
+    el.innerHTML = '<div class="empty-state">Geen nummers in de wachtrij</div>'; return;
+  }
+  el.innerHTML = data.queue.slice(0,10).map((t,i) => `
+    <div class="queue-item">
+      <span class="queue-num">${i+1}</span>
+      <img class="track-img" src="${t.album?.images?.[2]?.url||''}" alt="">
+      <div class="track-info">
+        <div class="track-name">${t.name}</div>
+        <div class="track-artist">${t.artists.map(a=>a.name).join(', ')}</div>
+      </div>
+      <span class="badge">${msToMin(t.duration_ms)}</span>
+    </div>`).join('');
+}
+
+async function addToQueue(uri, name, artist) {
+  const res = await spotifyFetch(`/me/player/queue?uri=${encodeURIComponent(uri)}`, { method: 'POST' });
+  if (res !== null) setStatus(`✓ "${name}" toegevoegd aan wachtrij`, 'ok');
+  else setStatus('Kon niet toevoegen – is Spotify actief?', 'err');
+  setTimeout(() => setStatus(''), 4000);
+  fetchQueue();
+}
+
+async function skipTrack() {
+  await spotifyFetch('/me/player/next', { method: 'POST' });
+  setTimeout(fetchNowPlaying, 800);
+}
+
+function msToMin(ms) {
+  const s = Math.floor(ms/1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+function renderRequests() {
+  const el = document.getElementById('requests-list');
+  const badge = document.getElementById('req-badge');
+  const pending = requests.filter(r => r.status === 'pending');
+  badge.textContent = pending.length;
+  badge.style.display = pending.length > 0 ? 'inline' : 'none';
+
+  if (requests.length === 0) { el.innerHTML = '<div class="empty-state">Nog geen verzoekjes</div>'; return; }
+
+  el.innerHTML = requests.slice().reverse().map((r,i) => `
+    <div class="queue-item" id="req-${r.id}">
+      <img class="track-img" src="${r.img||''}" alt="">
+      <div class="track-info">
+        <div class="track-name">${r.name}</div>
+        <div class="track-artist">${r.artist}</div>
+      </div>
+      ${r.status === 'pending' ? `
+        <div class="queue-actions">
+          <button class="btn btn-accept btn-small" onclick="acceptRequest('${r.id}')">✓ Toevoegen</button>
+          <button class="btn btn-danger btn-small" onclick="rejectRequest('${r.id}')">✕</button>
+        </div>` : `<span class="badge ${r.status==='accepted'?'badge-green':''}">${r.status==='accepted'?'Toegevoegd':'Geweigerd'}</span>`}
+    </div>`).join('');
+}
+
+function syncRequests() {
+  const stored = JSON.parse(localStorage.getItem('djreq_requests') || '[]');
+  if (JSON.stringify(stored) !== JSON.stringify(requests)) {
+    requests = stored;
+    renderRequests();
+  }
+}
+
+function acceptRequest(id) {
+  const r = requests.find(x => x.id === id);
+  if (!r) return;
+  r.status = 'accepted';
+  saveRequests();
+  renderRequests();
+  addToQueue(r.uri, r.name, r.artist);
+}
+
+function rejectRequest(id) {
+  const r = requests.find(x => x.id === id);
+  if (!r) return;
+  r.status = 'rejected';
+  saveRequests();
+  renderRequests();
+}
+
+function saveRequests() { localStorage.setItem('djreq_requests', JSON.stringify(requests)); }
+
+// ── GUEST SEARCH ──
+let searchTimer = null;
+function guestSearch(q) {
+  clearTimeout(searchTimer);
+  if (q.length < 2) { document.getElementById('guest-results').innerHTML = ''; return; }
+  searchTimer = setTimeout(() => doGuestSearch(q), 400);
+}
+
+async function doGuestSearch(q) {
+  const el = document.getElementById('guest-results');
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:14px;padding:8px 0;">Zoeken...</div>';
+
+  const token = await getClientToken();
+  if (!token) { el.innerHTML = '<div style="color:#e91429;font-size:13px;">Kon niet zoeken. Probeer opnieuw.</div>'; return; }
+
+  const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=6`, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const data = await res.json();
+  if (!data.tracks || data.tracks.items.length === 0) { el.innerHTML = '<div class="empty-state">Geen resultaten gevonden</div>'; return; }
+
+  el.innerHTML = data.tracks.items.map(t => `
+    <div class="track-item" onclick="submitRequest('${t.uri}','${esc(t.name)}','${esc(t.artists.map(a=>a.name).join(', '))}','${t.album?.images?.[2]?.url||''}')">
+      <img class="track-img" src="${t.album?.images?.[2]?.url||''}" alt="">
+      <div class="track-info">
+        <div class="track-name">${t.name}</div>
+        <div class="track-artist">${t.artists.map(a=>a.name).join(', ')}</div>
+      </div>
+      <span class="track-duration">${msToMin(t.duration_ms)}</span>
+    </div>`).join('');
+}
+
+function esc(s) { return s.replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+
+let clientToken = null;
+let clientTokenExpiry = 0;
+async function getClientToken() {
+  if (clientToken && Date.now() < clientTokenExpiry) return clientToken;
+  const CLIENT_SECRET = 'bcfcfbfef2fc4fc2a032de323d82f001';
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`
+  });
+  const data = await res.json();
+  clientToken = data.access_token;
+  clientTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+  return clientToken;
+}
+
+function submitRequest(uri, name, artist, img) {
+  const req = { id: Date.now().toString(), uri, name, artist, img, status: 'pending', time: new Date().toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'}) };
+  requests.push(req);
+  saveRequests();
+  document.getElementById('search-section').style.display = 'none';
+  document.getElementById('confirm-text').textContent = `"${name}" is naar de DJ gestuurd!`;
+  document.getElementById('sent-confirm').classList.add('active');
+}
+
+function resetGuest() {
+  document.getElementById('sent-confirm').classList.remove('active');
+  document.getElementById('search-section').style.display = 'block';
+  document.getElementById('guest-search').value = '';
+  document.getElementById('guest-results').innerHTML = '';
+}
+
+// ── QR CODE ──
+function generateQR() {
+  const guestURL = location.href.split('?')[0].split('#')[0] + '?mode=guest';
+  document.getElementById('qr-url-label').textContent = guestURL.replace('https://','').replace('http://','');
+  const canvas = document.getElementById('qr-canvas');
+  canvas.innerHTML = '';
+  new QRCode(canvas, { text: guestURL, width: 200, height: 200, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+  qrGenerated = true;
+}
+
+function downloadQR() {
+  const canvas = document.querySelector('#qr-canvas canvas');
+  if (!canvas) return;
+  const a = document.createElement('a'); a.download = 'dj-verzoekjes-qr.png'; a.href = canvas.toDataURL(); a.click();
+}
+
+// ── INIT ──
+window.onload = () => {
+  const params = Object.fromEntries(new URLSearchParams(location.search));
+  if (params.mode === 'guest') { showGuestView(); return; }
+
+  const hash = parseHash();
+  if (hash.access_token) {
+    accessToken = hash.access_token;
+    sessionStorage.setItem('spotify_token', accessToken);
+    history.replaceState(null, '', location.pathname);
+    showDJView();
+    return;
+  }
+  const stored = sessionStorage.getItem('spotify_token');
+  if (stored) { accessToken = stored; showDJView(); return; }
+  document.getElementById('login-view').style.display = 'flex';
+};
+</script>
+</body>
+</html>
