@@ -381,17 +381,38 @@ function showGuestView() {
   document.getElementById('guest-view').classList.add('active');
 }
 
-function loginSpotify() {
-  const state = Math.random().toString(36).slice(2);
-  sessionStorage.setItem('spotify_state', state);
-  const url = `https://accounts.spotify.com/authorize?response_type=token&client_id=${CLIENT_ID}&scope=${encodeURIComponent(SCOPES)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
+async function generateCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+async function loginSpotify() {
+  const verifier = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const challenge = await generateCodeChallenge(verifier);
+  sessionStorage.setItem('pkce_verifier', verifier);
+  const url = `https://accounts.spotify.com/authorize?response_type=code&client_id=${CLIENT_ID}&scope=${encodeURIComponent(SCOPES)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code_challenge_method=S256&code_challenge=${challenge}`;
   location.href = url;
 }
 
-function parseHash() {
-  const hash = location.hash.substring(1);
-  const params = Object.fromEntries(hash.split('&').map(p => p.split('=')));
-  return params;
+async function exchangeCode(code) {
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: verifier })
+  });
+  const data = await res.json();
+  if (data.access_token) {
+    accessToken = data.access_token;
+    sessionStorage.setItem('spotify_token', accessToken);
+    if (data.refresh_token) sessionStorage.setItem('spotify_refresh', data.refresh_token);
+    history.replaceState(null, '', location.pathname);
+    showDJView();
+  } else {
+    setStatus('Login mislukt, probeer opnieuw', 'err');
+    document.getElementById('login-view').style.display = 'flex';
+  }
 }
 
 function logout() {
@@ -619,14 +640,8 @@ window.onload = () => {
   const params = Object.fromEntries(new URLSearchParams(location.search));
   if (params.mode === 'guest') { showGuestView(); return; }
 
-  const hash = parseHash();
-  if (hash.access_token) {
-    accessToken = hash.access_token;
-    sessionStorage.setItem('spotify_token', accessToken);
-    history.replaceState(null, '', location.pathname);
-    showDJView();
-    return;
-  }
+  if (params.code) { exchangeCode(params.code); return; }
+
   const stored = sessionStorage.getItem('spotify_token');
   if (stored) { accessToken = stored; showDJView(); return; }
   document.getElementById('login-view').style.display = 'flex';
